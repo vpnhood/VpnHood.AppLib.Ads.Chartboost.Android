@@ -7,7 +7,7 @@ using Com.Chartboost.Sdk.Callbacks;
 using Com.Chartboost.Sdk.Events;
 using VpnHood.Core.Client.Device.UiContexts;
 
-namespace VpnHood.AppLib.Droid.Ads.VhChartboost;
+namespace VpnHood.AppLib.Ads.Chartboost.Android;
 
 public class ChartboostAdProvider(string appId, string adSignature, string adLocation, TimeSpan initializeTimeout) 
     : IAppAdProvider

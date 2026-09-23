@@ -5,7 +5,7 @@ using Com.Chartboost.Sdk.Privacy.Model;
 using VpnHood.Core.Common.Exceptions;
 using VpnHood.Core.Toolkit.Utils;
 
-namespace VpnHood.AppLib.Droid.Ads.VhChartboost;
+namespace VpnHood.AppLib.Ads.Chartboost.Android;
 
 public class ChartboostUtil
 {

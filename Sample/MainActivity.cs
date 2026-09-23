@@ -1,5 +1,5 @@
 using _Microsoft.Android.Resource.Designer;
-using VpnHood.AppLib.Droid.Ads.VhChartboost;
+using VpnHood.AppLib.Ads.Chartboost.Android;
 using VpnHood.Core.Client.Device.Droid;
 using VpnHood.Core.Client.Device.Droid.ActivityEvents;
 

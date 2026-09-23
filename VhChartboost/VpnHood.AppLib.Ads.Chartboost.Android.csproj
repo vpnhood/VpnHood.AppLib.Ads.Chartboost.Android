@@ -3,7 +3,6 @@
 		<Description>VpnHood Android Ad Library for Chartboost</Description>
 		<TargetFramework>net9.0-android35.0</TargetFramework>
 		<SupportedOSPlatformVersion>24</SupportedOSPlatformVersion>
-		<RootNamespace>VpnHood.AppLib.Droid.Ads.VhChartboost</RootNamespace>
 	</PropertyGroup>
 
 	<PropertyGroup>
