@@ -18,8 +18,8 @@
 		<Company>OmegaHood LLC</Company>
 		<Copyright>© OmegaHood LLC. All rights reserved.</Copyright>
 		<PackageIcon>VpnHood.png</PackageIcon>
-		<PackageProjectUrl>https://github.com/vpnhood/VpnHood.AppLib.Android.Ads.Chartboost</PackageProjectUrl>
-		<RepositoryUrl>https://github.com/vpnhood/VpnHood.AppLib.Android.Ads.Chartboost</RepositoryUrl>
+		<PackageProjectUrl>https://github.com/vpnhood/VpnHood.AppLib.Ads.Chartboost.Android</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/vpnhood/VpnHood.AppLib.Ads.Chartboost.Android</RepositoryUrl>
 		<Version>6.0.570</Version>
 		<FileVersion>$([System.DateTime]::Now.ToString("yyyy.M.d.HHmm"))</FileVersion>
 		<BaseIntermediateOutputPath />
