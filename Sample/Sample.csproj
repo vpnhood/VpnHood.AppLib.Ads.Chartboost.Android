@@ -10,7 +10,7 @@
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\VhChartboost\VpnHood.AppLib.Android.Ads.Chartboost.csproj" />
+    <ProjectReference Include="..\VhChartboost\VpnHood.AppLib.Ads.Chartboost.Android.csproj" />
   </ItemGroup>
 
 	<PropertyGroup Condition="'$(Configuration)'=='Release'">
