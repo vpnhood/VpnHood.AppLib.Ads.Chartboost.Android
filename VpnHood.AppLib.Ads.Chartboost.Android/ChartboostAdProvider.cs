@@ -103,11 +103,18 @@ public class ChartboostAdProvider(string appId, string adSignature, string adLoc
 
         public void OnAdLoaded(CacheEvent e, CacheError? error)
         {
-            if (error != null)
-                _loadedCompletionSource.TrySetException(new LoadAdException(
-                    $"Chartboost ad failed to load. Error: {error}, ErrorCode: {error.GetCode()}"));
-            else
+            if (error == null)
+            {
                 _loadedCompletionSource.TrySetResult();
+                return;
+            }
+
+            // no inventory is a no-fill, not a failure: the app treats any other load error under
+            // secure DNS as a sign of an ad blocker (see AppAdManager)
+            var message = $"Chartboost ad failed to load. Error: {error}, ErrorCode: {error.GetCode()}";
+            _loadedCompletionSource.TrySetException(error.GetCode() == CacheError.Code.NoAdFound
+                ? new NoFillAdException(message)
+                : new LoadAdException(message));
         }
 
         public void OnAdRequestedToShow(ShowEvent e)
