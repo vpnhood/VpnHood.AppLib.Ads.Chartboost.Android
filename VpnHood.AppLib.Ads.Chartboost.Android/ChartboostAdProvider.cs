@@ -1,22 +1,22 @@
-﻿using VpnHood.AppLib.Abstractions;
-using VpnHood.Core.Client.Device.Droid;
-using VpnHood.Core.Client.Device.Droid.Utils;
-using VpnHood.Core.Common.Exceptions;
 using Com.Chartboost.Sdk.Ads;
 using Com.Chartboost.Sdk.Callbacks;
 using Com.Chartboost.Sdk.Events;
-using VpnHood.Core.Client.Device.UiContexts;
+using VpnHood.AppLib.Abstractions.Ads;
+using VpnHood.AppLib.Abstractions.Ads.AdExceptions;
+using VpnHood.Core.Client.Devices.Abstractions.UiContexts;
+using VpnHood.Core.Client.Devices.Android;
+using VpnHood.Core.Client.Devices.Android.Utils;
 
 namespace VpnHood.AppLib.Ads.Chartboost.Android;
 
-public class ChartboostAdProvider(string appId, string adSignature, string adLocation, TimeSpan initializeTimeout) 
-    : IAppAdProvider
+public class ChartboostAdProvider(string appId, string adSignature, string adLocation, TimeSpan initializeTimeout)
+    : IAdProvider
 {
     private Interstitial? _chartboostInterstitialAd;
     private MyInterstitialCallBack? _myInterstitialCallBack;
 
     public string NetworkName => "Chartboost";
-    public AppAdType AdType => AppAdType.InterstitialAd;
+    public AdType AdType => AdType.InterstitialAd;
     public DateTime? AdLoadedTime { get; private set; }
     public TimeSpan AdLifeSpan { get; } = TimeSpan.FromMinutes(45);
     public static int RequiredAndroidVersion => ChartboostUtil.RequiredAndroidVersion;
@@ -33,7 +33,7 @@ public class ChartboostAdProvider(string appId, string adSignature, string adLoc
         var appUiContext = (AndroidUiContext)uiContext;
         var activity = appUiContext.Activity;
         if (activity.IsDestroyed)
-            throw new AdException("MainActivity has been destroyed before loading the ad.");
+            throw new LoadAdException("MainActivity has been destroyed before loading the ad.");
 
         // initialize
         await ChartboostUtil.Initialize(activity, appId, adSignature, initializeTimeout, cancellationToken);
@@ -50,33 +50,36 @@ public class ChartboostAdProvider(string appId, string adSignature, string adLoc
             .WaitAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        AdLoadedTime = DateTime.Now;
+        // the app ages ads against UTC
+        AdLoadedTime = DateTime.UtcNow;
     }
 
-    public async Task ShowAd(IUiContext uiContext, string? customData, CancellationToken cancellationToken)
+    public async Task<ShowAdResult> ShowAd(IUiContext uiContext, string? customData, CancellationToken cancellationToken)
     {
         var appUiContext = (AndroidUiContext)uiContext;
         var activity = appUiContext.Activity;
         if (activity.IsDestroyed)
-            throw new AdException("MainActivity has been destroyed before showing the ad.");
+            throw new ShowAdException("MainActivity has been destroyed before showing the ad.");
 
+        var interstitialAd = _chartboostInterstitialAd;
+        var callBack = _myInterstitialCallBack;
         try
         {
-            if (AdLoadedTime == null || _chartboostInterstitialAd == null || _myInterstitialCallBack == null)
-                throw new AdException($"The {AdType} has not been loaded.");
+            if (AdLoadedTime == null || interstitialAd == null || callBack == null)
+                throw new ShowAdException($"The {AdType} has not been loaded.");
 
-            await AndroidUtil.RunOnUiThread(activity, () => _chartboostInterstitialAd.Show())
+            await AndroidUtils.RunOnUiThread(activity, () => interstitialAd.Show())
                 .WaitAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            // wait for show or dismiss
-            await _myInterstitialCallBack.ShownTask
+            // wait until the ad is dismissed; a click before that makes it a Clicked result
+            return await callBack.DismissedTask
                 .WaitAsync(cancellationToken)
                 .ConfigureAwait(false);
         }
         finally
         {
-            _chartboostInterstitialAd?.ClearCache();
+            interstitialAd?.ClearCache();
             _chartboostInterstitialAd = null;
             AdLoadedTime = null;
         }
@@ -84,21 +87,25 @@ public class ChartboostAdProvider(string appId, string adSignature, string adLoc
 
     private class MyInterstitialCallBack : Java.Lang.Object, IInterstitialCallback
     {
+        private bool _isClicked;
+
         private readonly TaskCompletionSource _loadedCompletionSource = new();
         public Task LoadTask => _loadedCompletionSource.Task;
 
-        private readonly TaskCompletionSource _shownCompletionSource = new();
-        public Task ShownTask => _shownCompletionSource.Task;
+        private readonly TaskCompletionSource<ShowAdResult> _dismissedCompletionSource = new();
+        public Task<ShowAdResult> DismissedTask => _dismissedCompletionSource.Task;
 
         public void OnAdClicked(ClickEvent e, ClickError? error)
         {
+            if (error == null)
+                _isClicked = true;
         }
 
         public void OnAdLoaded(CacheEvent e, CacheError? error)
         {
             if (error != null)
                 _loadedCompletionSource.TrySetException(new LoadAdException(
-                    $"Chartboost Ads initialization failed. Error: {error}, ErrorCode: {error.GetCode()}"));
+                    $"Chartboost ad failed to load. Error: {error}, ErrorCode: {error.GetCode()}"));
             else
                 _loadedCompletionSource.TrySetResult();
         }
@@ -111,8 +118,8 @@ public class ChartboostAdProvider(string appId, string adSignature, string adLoc
         public void OnAdShown(ShowEvent e, ShowError? error)
         {
             if (error != null)
-                _shownCompletionSource.TrySetException(new LoadAdException(
-                    $"Chartboost Ads show failed. Error: {error}, ErrorCode: {error.GetCode()}"));
+                _dismissedCompletionSource.TrySetException(new ShowAdException(
+                    $"Chartboost ad failed to show. Error: {error}, ErrorCode: {error.GetCode()}"));
         }
 
         public void OnImpressionRecorded(ImpressionEvent e)
@@ -122,7 +129,7 @@ public class ChartboostAdProvider(string appId, string adSignature, string adLoc
 
         public void OnAdDismiss(DismissEvent e)
         {
-            _shownCompletionSource.TrySetResult();
+            _dismissedCompletionSource.TrySetResult(_isClicked ? ShowAdResult.Clicked : ShowAdResult.Closed);
         }
     }
 

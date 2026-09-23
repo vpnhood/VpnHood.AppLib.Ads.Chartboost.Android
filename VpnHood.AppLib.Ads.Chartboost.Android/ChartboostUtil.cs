@@ -2,8 +2,10 @@
 using Com.Chartboost.Sdk.Callbacks;
 using Com.Chartboost.Sdk.Events;
 using Com.Chartboost.Sdk.Privacy.Model;
-using VpnHood.Core.Common.Exceptions;
-using VpnHood.Core.Toolkit.Utils;
+using VpnHood.AppLib.Abstractions.Ads.AdExceptions;
+using VpnHood.Net.Toolkit.Utils;
+// inside VpnHood.AppLib.Ads.Chartboost.Android a bare "Chartboost" is the parent namespace, not the SDK class
+using ChartboostSdk = Com.Chartboost.Sdk.Chartboost;
 
 namespace VpnHood.AppLib.Ads.Chartboost.Android;
 
@@ -27,8 +29,8 @@ public class ChartboostUtil
             return;
 
         var sdkStartCallback = new StartCallback();
-        Chartboost.AddDataUseConsent(activity, new COPPA(false));
-        Chartboost.StartWithAppId(activity, appId, adSignature, sdkStartCallback);
+        ChartboostSdk.AddDataUseConsent(activity, new COPPA(false));
+        ChartboostSdk.StartWithAppId(activity, appId, adSignature, sdkStartCallback);
 
         await sdkStartCallback.Task
             .WaitAsync(timeout, cancellationToken)

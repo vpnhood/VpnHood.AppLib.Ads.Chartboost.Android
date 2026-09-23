@@ -6,36 +6,81 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  contents: write
+  id-token: write   # OIDC token for nuget.org trusted publishing (NuGet/login)
+
 jobs:
   build:
-  
-    env:
-        BUILD_CONFIG: 'Release'
-        PROJECT_NAME: 'VpnHood.AppLib.Ads.Chartboost.Android'
-
     runs-on: ubuntu-latest
+    env:
+      BUILD_CONFIG: 'Release'
+      PROJECT_NAME: 'VpnHood.AppLib.Ads.Chartboost.Android/VpnHood.AppLib.Ads.Chartboost.Android.csproj'
 
     steps:
-    - uses: actions/checkout@v4
-
-    - name: Bump versions
-      uses: SiqiLu/dotnet-bump-version@2.0.0
+    - name: Checkout
+      uses: actions/checkout@v4
       with:
-        version_files: "**/*.Chartboost.csproj"
-        version_mask: 0.0.1.0
-        version_overwrite: "*.*.*.*"
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-   
+        fetch-depth: 0
+        persist-credentials: true
+
+    - name: Bump version and push
+      if: github.event_name == 'push'
+      shell: pwsh
+      run: |
+        #1) Read PubVersion.json, increment build, and save
+        $pubVersionFile = Join-Path $env:GITHUB_WORKSPACE 'pub/PubVersion.json'
+        $pub = Get-Content $pubVersionFile -Raw | ConvertFrom-Json
+        $v = [version]::Parse($pub.Version)
+        $newV = [version]::new($v.Major, $v.Minor, ($v.Build + 1))
+        $pub.Version = $newV.ToString(3)
+        $pub | ConvertTo-Json -Depth 5 | Set-Content -Path $pubVersionFile -Encoding UTF8
+        Write-Host "New version: $($pub.Version)"
+
+        #2) Apply this version to all C# project files that are packable
+        $csprojFiles = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter *.csproj -File
+        foreach ($proj in $csprojFiles) {
+          $xml = New-Object XML
+          $xml.PreserveWhitespace = $true
+          $xml.Load($proj.FullName)
+          
+          # Check if IsPackable is true (or not set, which defaults to true)
+          $isPackableNode = $xml.SelectSingleNode("Project/PropertyGroup/IsPackable")
+          if ($isPackableNode -ne $null -and $isPackableNode.InnerText -eq "false") {
+            Write-Host "Skipping non-packable project: $($proj.FullName)"
+            continue
+          }
+          
+          Write-Host "Setting version $($pub.Version) in: $($proj.FullName)"
+          $versionNode = $xml.SelectSingleNode("Project/PropertyGroup/Version")
+          if ($null -eq $versionNode) { throw "Version node not found or invalid format in project file: $($proj.FullName)" }
+          $versionNode.InnerText = $pub.Version
+          $xml.Save($proj.FullName)
+        }
+
+        #3) Commit and push using the version from PubVersion.json
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git add -A
+        git commit -m "chore: bump version $($pub.Version)"
+        git push
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 9.0.x
+        dotnet-version: 10.0.x
 
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v2
+    # The runner image already has the Android SDK; android-actions/setup-android@v2 broke when
+    # Google retired the SDK 'tools' package, so provision the way the VpnHood app builds do.
+    - name: Setup Java
+      uses: actions/setup-java@v5
+      with: { distribution: temurin, java-version: "17" }
 
-    - name: Android SDK
+    - name: Install .NET Android workload
       run: dotnet workload install android
+
+    - name: Provision Android SDK
+      run: dotnet build $PROJECT_NAME -t:InstallAndroidDependencies -p:AcceptAndroidSDKLicenses=True -p:AndroidSdkPath="$ANDROID_HOME"
 
     - name: Restore dependencies
       run: dotnet restore $PROJECT_NAME
@@ -46,5 +91,15 @@ jobs:
     - name: Pack All Projects
       run: dotnet pack $PROJECT_NAME --configuration $BUILD_CONFIG -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg
 
+    # Trusted publishing: exchange the workflow's OIDC token for a short-lived nuget.org API key
+    # (policy: vpnhood/VpnHood.AppLib.Ads.Chartboost.Android + nuget-main.yml, created by trudyhood).
+    - name: NuGet login (trusted publishing)
+      if: github.event_name == 'push'
+      id: nuget_login
+      uses: NuGet/login@v1
+      with:
+        user: trudyhood
+
     - name: Publish
-      run: dotnet nuget push "**/*.nupkg" --source "https://api.nuget.org/v3/index.json" --api-key ${{secrets.NUGET_API_KEY_ADS}}
+      if: github.event_name == 'push'
+      run: dotnet nuget push "**/*.nupkg" --source "https://api.nuget.org/v3/index.json" --api-key ${{ steps.nuget_login.outputs.NUGET_API_KEY }} --skip-duplicate
