@@ -42,7 +42,7 @@ public class ChartboostAdProvider(string appId, string adSignature, string adLoc
         AdLoadedTime = null;
 
         // Load a new Ad
-        _myInterstitialCallBack = new MyInterstitialCallBack();
+        _myInterstitialCallBack = new MyInterstitialCallBack(onAdExpired: () => AdLoadedTime = null);
         _chartboostInterstitialAd = new Interstitial(adLocation, _myInterstitialCallBack, null);
         _chartboostInterstitialAd.Cache();
 
@@ -85,7 +85,7 @@ public class ChartboostAdProvider(string appId, string adSignature, string adLoc
         }
     }
 
-    private class MyInterstitialCallBack : Java.Lang.Object, IInterstitialCallback
+    private class MyInterstitialCallBack(Action onAdExpired) : Java.Lang.Object, IInterstitialCallback
     {
         private bool _isClicked;
 
@@ -109,8 +109,7 @@ public class ChartboostAdProvider(string appId, string adSignature, string adLoc
                 return;
             }
 
-            // no inventory is a no-fill, not a failure: the app treats any other load error under
-            // secure DNS as a sign of an ad blocker (see AppAdManager)
+            // no inventory is a no-fill, not a failure
             var message = $"Chartboost ad failed to load. Error: {error}, ErrorCode: {error.GetCode()}";
             _loadedCompletionSource.TrySetException(error.GetCode() == CacheError.Code.NoAdFound
                 ? new NoFillAdException(message)
@@ -137,6 +136,12 @@ public class ChartboostAdProvider(string appId, string adSignature, string adLoc
         public void OnAdDismiss(DismissEvent e)
         {
             _dismissedCompletionSource.TrySetResult(_isClicked ? ShowAdResult.Clicked : ShowAdResult.Closed);
+        }
+
+        // Chartboost dropped the cached ad: the app sees it as not loaded and loads another
+        public void OnAdExpired(ExpirationEvent e)
+        {
+            onAdExpired();
         }
     }
 

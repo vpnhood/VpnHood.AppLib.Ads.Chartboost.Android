@@ -1,6 +1,32 @@
-﻿<metadata>
-	<remove-node path="/api/package[@name='com.chartboost.sdk.privacy.model']/class[@name='CCPA']" />
-	<remove-node path="/api/package[@name='com.chartboost.sdk.privacy.model']/class[@name='Custom']" />
-	<remove-node path="/api/package[@name='com.chartboost.sdk.privacy.model']/class[@name='GDPR']" />
-	<remove-node path="/api/package[starts-with(@name, 'com.chartboost.sdk.internal')]" />
+<metadata>
+	<!-- Bind only the SDK's public API: the entry point, the ad, its callbacks and events, and the
+	     privacy model. The rest is the SDK's obfuscated internals, which stay Java-only. -->
+	<remove-node path="/api/package[not(
+		@name='com.chartboost.sdk' or
+		@name='com.chartboost.sdk.ads' or
+		@name='com.chartboost.sdk.callbacks' or
+		@name='com.chartboost.sdk.events' or
+		@name='com.chartboost.sdk.privacy.model')]" />
+
+	<!-- Kotlin's sealed error tree: nothing kept returns or takes it, and it binds into hundreds of
+	     member-hiding warnings -->
+	<remove-node path="/api/package[@name='com.chartboost.sdk.events']/*[starts-with(@name, 'ChartboostError')]" />
+
+	<!-- The consent types the provider does not use (it sets COPPA only), with their nested types, and
+	     the Kotlin companions that clash with the classes they belong to -->
+	<remove-node path="/api/package[@name='com.chartboost.sdk.privacy.model']/*[
+		@name='CCPA' or starts-with(@name, 'CCPA.') or
+		@name='GDPR' or starts-with(@name, 'GDPR.') or
+		@name='Custom' or
+		@name='COPPA.Companion' or @name='LGPD.Companion']" />
+	<remove-node path="/api/package[@name='com.chartboost.sdk.privacy.model']/class[@name='COPPA' or @name='LGPD']/field[@name='Companion']" />
+
+	<!-- Kotlin's static helpers for its interface defaults; the provider implements every callback -->
+	<remove-node path="/api/package[@name='com.chartboost.sdk.callbacks']/*[contains(@name, '.DefaultImpls')]" />
+
+	<!-- Members typed by the internals removed above, and GenericDataUseConsent's obfuscated ones -->
+	<remove-node path="/api/package[@name='com.chartboost.sdk']/class[@name='Mediation']/method[@name='toMediationBodyFields']" />
+	<remove-node path="/api/package[@name='com.chartboost.sdk.events']/class[@name='ExpirationEvent']/method[@name='getReason']" />
+	<remove-node path="/api/package[@name='com.chartboost.sdk.privacy.model']/class[@name='GenericDataUseConsent']/*[
+		@name='a' or @name='b' or @name='store']" />
 </metadata>

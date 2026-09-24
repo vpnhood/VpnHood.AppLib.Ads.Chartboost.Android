@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<Description>VpnHood Android Ad Library for Chartboost</Description>
-		<TargetFramework>net10.0-android36.1</TargetFramework>
+		<TargetFramework>net11.0-android37.0</TargetFramework>
 		<SupportedOSPlatformVersion>24</SupportedOSPlatformVersion>
 	</PropertyGroup>
 
@@ -33,14 +33,49 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="VpnHood.AppLib.Abstractions" Version="8.2.852" />
-		<PackageReference Include="VpnHood.Core.Client.Devices.Android" Version="8.2.852" />
-		<PackageReference Include="Xamarin.GooglePlayServices.Ads.Identifier" Version="118.2.0.1" />
-		<PackageReference Include="Xamarin.GooglePlayServices.AppSet" Version="116.1.0.4" />
-		<PackageReference Include="Xamarin.GooglePlayServices.Auth" Version="121.3.0.1" />
-		<PackageReference Include="Xamarin.GooglePlayServices.Gcm" Version="117.0.0.20" />
-		<PackageReference Include="Xamarin.Kotlin.StdLib.Jdk8" Version="2.0.21.2" />
+		<!-- The Chartboost SDK from Chartboost's own Maven repository (Maven Central stops at 9.2), bound:
+		     the provider calls it directly. Its measurement SDK ships beside it, unbound. -->
+		<AndroidMavenLibrary Include="com.chartboost:chartboost-sdk" Version="9.14.1" Repository="https://cboost.jfrog.io/artifactory/chartboost-ads/" />
+		<AndroidMavenLibrary Include="com.iab.omid.library:chartboost-omsdk-android" Version="1.6.7" Repository="https://cboost.jfrog.io/artifactory/chartboost-ads/" Bind="false" />
+	</ItemGroup>
+
+	<!-- Transforms/Metadata.xml binds only the SDK's public API, but the binder resolves every class
+	     before that filter runs and warns about the internals that reference the measurement SDK and
+	     Kotlin internals. Those classes are then dropped by the filter anyway, so the two warnings say
+	     nothing about what is bound; the C# here does not compile if its API goes missing. -->
+	<PropertyGroup>
+		<NoWarn>$(NoWarn);BG8605;BG8606</NoWarn>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="VpnHood.AppLib.Abstractions" Version="8.2.853" />
+		<PackageReference Include="VpnHood.Core.Client.Devices.Android" Version="8.2.853" />
+	</ItemGroup>
+
+	<!-- What the Chartboost SDK needs at runtime, from its POM; the build verifies the list is complete.
+	     Backward-compatible libraries (AndroidX, Play services, Kotlin, Material) are at their newest;
+	     OkHttp is on 5 like the InMobi package (its Java API stays compatible with the SDK's 4.12), and
+	     Media3 stays on the SDK's 1.4.1 (its unstable APIs change between minor versions). -->
+	<ItemGroup>
+		<PackageReference Include="Square.OkHttp3" Version="5.5.0" />
 		<PackageReference Include="Xam.Plugins.Android.ExoPlayer.Core" Version="2.19.1" />
+		<PackageReference Include="Xamarin.AndroidX.Lifecycle.Process" Version="2.11.0.1" />
+		<PackageReference Include="Xamarin.AndroidX.Media3.ExoPlayer" Version="1.4.1.1" />
+		<PackageReference Include="Xamarin.AndroidX.Media3.Ui" Version="1.4.1.1" />
+		<PackageReference Include="Xamarin.AndroidX.MultiDex" Version="2.0.1.37" />
+		<PackageReference Include="Xamarin.AndroidX.WebKit" Version="1.17.0" />
+		<PackageReference Include="Xamarin.Google.Android.Material" Version="1.14.0.6" />
+		<PackageReference Include="Xamarin.GooglePlayServices.Ads.Identifier" Version="118.3.0.3" />
+		<PackageReference Include="Xamarin.GooglePlayServices.AppSet" Version="116.1.0.11" />
+		<PackageReference Include="Xamarin.Kotlin.StdLib" Version="2.4.0.1" />
+		<PackageReference Include="Xamarin.KotlinX.Coroutines.Android" Version="1.11.0.1" />
+		<PackageReference Include="Xamarin.KotlinX.Serialization.Json" Version="1.11.0.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- The legacy ExoPlayer the SDK still names beside Media3: only the community binding above
+		     ships it, and that package does not declare its Java artifact for the build's check to find. -->
+		<AndroidIgnoredJavaDependency Include="com.google.android.exoplayer:exoplayer-core:2.18.7" />
 	</ItemGroup>
 
 </Project>
