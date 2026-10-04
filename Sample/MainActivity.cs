@@ -42,11 +42,11 @@ public class MainActivity : ActivityEvent
     }
 
     // The ids live in the private .user folder beside this repo, one value per file
-    // (.user/ad/Chartboost); the csproj embeds each one by its file name.
+    // (.user/vendors/chartboost); the csproj embeds each one by its file name.
     private static string ReadUserValue(string fileName)
     {
         using var stream = typeof(MainActivity).Assembly.GetManifestResourceStream(fileName)
-            ?? throw new InvalidOperationException($"{fileName} is missing. Put it in .user/ad/Chartboost beside this repo.");
+            ?? throw new InvalidOperationException($"{fileName} is missing. Put it in .user/vendors/chartboost beside this repo.");
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd().Trim();
     }
